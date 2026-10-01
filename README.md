@@ -1,298 +1,450 @@
-iPay
+![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)
+![React](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![Sanctum](https://img.shields.io/badge/Laravel-Sanctum-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)
 
-iPay adalah aplikasi dompet digital/payment sederhana dengan arsitektur full-stack yang menggunakan satu backend Laravel dan dua frontend:
+# 💳 iPay — Digital Wallet & Payment System
 
-Laravel — REST API + database MySQL
+Aplikasi dompet digital dan payment sederhana berbasis **full-stack** dengan satu Laravel REST API dan dua frontend:
 
-React + TypeScript — aplikasi web
+- 🌐 **React + TypeScript** — Web Application
+- 📱 **Flutter + Dart** — Android Application
+- ⚙️ **Laravel** — REST API + MySQL
 
-Flutter + Dart — aplikasi mobile Android
+React dan Flutter menggunakan backend API yang sama sehingga fitur, data, validasi, dan business flow dapat dibuat konsisten pada kedua platform.
 
-Backend API dipakai bersama oleh React dan Flutter sehingga fitur dan alur transaksi dapat dibuat konsisten di kedua client.
+> **One Backend, Two Clients**
+>
+> React berfokus pada pengalaman web, sedangkan Flutter berfokus pada pengalaman mobile Android.
 
-Daftar Isi
+---
 
-Gambaran Project
+## 📁 Struktur Project
 
-Struktur Project
-
-Tech Stack
-
-Fitur
-
-Persyaratan
-
-Instalasi
-
-Konfigurasi Backend
-
-Menjalankan Backend
-
-Menjalankan React
-
-Menjalankan Flutter Android
-
-Menjalankan Semua Sekaligus
-
-Akun Demo
-
-API Endpoint
-
-Alur Pembayaran
-
-QR Payment
-
-React vs Flutter
-
-Troubleshooting
-
-Testing & Verification
-
-Catatan Development
-
-TODO / Improvement
-
-Git Workflow
-
-Gambaran Project
-
-iPay menyediakan fungsi utama dompet digital seperti:
-
-Registrasi dan login
-
-Wallet/saldo
-
-Top Up
-
-Transfer antar pengguna
-
-Payment Request / tagihan
-
-Bayar Tagihan
-
-Bayar Langsung
-
-QR Saya dan Scan QR
-
-Riwayat transaksi
-
-Detail transaksi
-
-Profil dan perubahan PIN
-
-Simulasi sumber pembayaran DANA, GoPay, BCA, dan Saldo iPay
-
-Prinsip arsitektur:
-
-                    ┌─────────────────┐
-                    │  Laravel API    │
-                    │   Port : 8000   │
-                    └────────┬────────┘
-                             │
-                ┌────────────┴────────────┐
-                │                         │
-        ┌───────▼────────┐       ┌────────▼───────┐
-        │ React Web      │       │ Flutter Android │
-        │ Port : 5173    │       │ USB / LAN       │
-        └────────────────┘       └─────────────────┘
-
-React dan Flutter menggunakan backend yang sama. React tetap dibuat sebagai web UI, sedangkan Flutter sebagai mobile UI. Fitur dan flow keduanya ditujukan agar tetap sama.
-
-Struktur Project
-
+```text
 ipay/
-├── backend/                 # Laravel REST API + MySQL integration
-├── frontend/                # React + TypeScript web application
-├── ipay_flutter/            # Flutter Android application
+├── backend/                    # Laravel REST API + MySQL
+│   ├── app/
+│   │   ├── Http/
+│   │   └── Models/
+│   ├── database/
+│   │   ├── migrations/
+│   │   └── seeders/
+│   ├── routes/
+│   ├── config/
+│   └── ...
+│
+├── frontend/                   # React + TypeScript Web App
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   └── ...
+│   ├── public/
+│   ├── package.json
+│   └── ...
+│
+├── ipay_flutter/               # Flutter Android App
+│   ├── lib/
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── providers/
+│   │   ├── routes/
+│   │   ├── screens/
+│   │   ├── services/
+│   │   └── widgets/
+│   ├── android/
+│   ├── test/
+│   └── pubspec.yaml
+│
+├── .gitignore
 └── README.md
+```
+
+---
+
+## ✨ Fitur
+
+### 🌐 React Web
+
+| Fitur | Deskripsi |
+|---|---|
+| 🔐 Login & Register | Autentikasi menggunakan email, nomor HP, atau iPay ID |
+| 🏠 Dashboard | Melihat saldo dan ringkasan aktivitas |
+| 💰 Wallet | Menampilkan dan menyembunyikan saldo |
+| 💵 Top Up | Top up menggunakan sumber pembayaran simulasi |
+| 💸 Transfer | Transfer saldo menggunakan iPay ID |
+| ⚡ Bayar Langsung | Pembayaran langsung ke user berdasarkan iPay ID |
+| 🧾 Bayar Tagihan | Membayar payment request yang masuk |
+| 📩 Request Payment | Membuat permintaan pembayaran |
+| 📱 QR | Generate dan menggunakan QR iPay |
+| 📊 History | Riwayat dan detail transaksi |
+| 👤 Profile | Edit profile dan perubahan PIN |
+
+### 📱 Flutter Android
+
+| Fitur | Deskripsi |
+|---|---|
+| 🔐 Login & Register | Autentikasi dengan PIN 6 digit |
+| 🏠 Dashboard | Saldo dan quick actions |
+| 💰 Wallet | Saldo dan aktivitas wallet |
+| 💵 Top Up | Simulasi top up |
+| 💸 Transfer | Transfer antar pengguna |
+| ⚡ Bayar Langsung | Pembayaran langsung menggunakan iPay ID |
+| 🧾 Bayar Tagihan | Pembayaran payment request |
+| 📩 Request Payment | Membuat payment request |
+| 📱 My QR | Generate QR berdasarkan iPay ID |
+| 📷 Scan QR | Scan QR menggunakan kamera |
+| 📊 History | Riwayat dan detail transaksi |
+| 👤 Profile | Edit profile dan change PIN |
+
+### ⚙️ Backend API
+
+- Authentication menggunakan **Laravel Sanctum**
+- User management
+- Wallet management
+- Top Up
+- Transfer
+- Payment Request
+- Pay Bills
+- Pay Direct
+- Transaction History
+- QR payment support
+- PIN validation
+- Balance validation
+- Transaction validation
+- Payment status management
+
+---
+
+## 🛠️ Teknologi
+
+| Layer | Stack |
+|---|---|
+| 🌐 Web | React, TypeScript, Vite |
+| 📱 Mobile | Flutter, Dart |
+| ⚙️ Backend | Laravel 12, PHP |
+| 🔐 Authentication | Laravel Sanctum |
+| 🗄️ Database | MySQL |
+| 🌐 HTTP Client | Axios, Dio |
+| 🧭 Web Routing | React Router |
+| 🧭 Mobile Routing | GoRouter |
+| 📦 Mobile State | Provider |
+| 🔒 Token Storage | flutter_secure_storage |
+| 📷 QR Scanner | mobile_scanner |
+| 🔳 QR Generator | qr_flutter |
+| 🎨 Typography | Plus Jakarta Sans, Google Fonts |
 
-backend/
+---
 
-Berisi:
+# 🚀 Cara Menjalankan
 
-Laravel application
+## Prerequisites
 
-Authentication
+Pastikan sudah terinstall:
 
-Wallet
+- Git
+- PHP
+- Composer
+- MySQL
+- Node.js
+- npm
+- Flutter SDK
+- Android SDK
+- ADB
 
-Transactions
+Untuk testing Flutter menggunakan HP Android, aktifkan **USB Debugging** terlebih dahulu.
 
-Payments
+Cek device:
 
-Database migrations/models
+```bash
+adb devices
+```
 
-API routes
+---
 
-frontend/
+## 1. Clone Repository
 
-Berisi:
+```bash
+git clone https://github.com/khusaery01/iPay.git
+cd iPay
+```
 
-React + TypeScript
+---
 
-Web dashboard
+## 2. Backend — Laravel
 
-Authentication pages
+Masuk ke folder backend:
 
-Wallet/payment pages
+```bash
+cd backend
+```
 
-Transaction history
+Install dependency:
 
-Profile
+```bash
+composer install
+```
 
-QR features
+Buat file environment.
 
-API client
+### Windows PowerShell
 
-ipay_flutter/
+```powershell
+Copy-Item .env.example .env
+```
 
-Berisi:
+Generate application key:
 
-Flutter Android application
+```bash
+php artisan key:generate
+```
 
-Provider state management
+Atur konfigurasi database pada `.env`:
 
-GoRouter navigation
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=ipay_db
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-Dio API client
+Jalankan migration/seeder sesuai kondisi database project.
 
-Secure token storage
+Kemudian jalankan Laravel:
 
-QR generation/scanning
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+```
 
-Mobile screens dan reusable widgets
+Backend API:
 
-Tech Stack
+```text
+http://127.0.0.1:8000/api
+```
 
-Backend
+---
 
-PHP
+## 3. React Web
 
-Laravel 12
+Buka terminal baru:
 
-Laravel Sanctum
+```bash
+cd frontend
+```
 
-MySQL
+Install dependency:
 
-REST API
+```bash
+npm install
+```
 
-React Web
+Buat file:
 
-React
+```text
+frontend/.env
+```
 
-TypeScript
+Untuk development pada komputer yang sama:
 
-Vite
+```env
+VITE_API_URL=http://localhost:8000/api
+```
 
-Axios
+Untuk akses melalui jaringan LAN:
 
-React Router
+```env
+VITE_API_URL=http://IP-KOMPUTER:8000/api
+```
 
-CSS
+Jalankan React:
 
-Plus Jakarta Sans
+```bash
+npm run dev -- --host 0.0.0.0 --port=5173
+```
 
-Flutter
+React Web:
 
-Flutter / Dart
+```text
+http://localhost:5173
+```
 
-Dio
+> **Important:** React menggunakan port `5173`, sedangkan Laravel menggunakan port `8000`.
 
-Provider
+```text
+Laravel → :8000
+React   → :5173
+```
 
-GoRouter
+---
 
-flutter_secure_storage
+## 4. Flutter Android
 
-mobile_scanner
+Masuk ke project Flutter:
 
-qr_flutter
+```bash
+cd ipay_flutter
+```
 
-intl
+Install packages:
 
-google_fonts
+```bash
+flutter pub get
+```
 
-Fitur
+Cek device:
 
-Authentication
+```bash
+adb devices
+```
 
-Register
+Jika menggunakan HP Android melalui USB:
 
-Login
+```bash
+adb reverse tcp:8000 tcp:8000
+```
 
-Logout
+Kemudian jalankan:
 
-Login menggunakan email / nomor HP / iPay ID
+```bash
+flutter run
+```
 
-PIN 6 digit
+Cek reverse port:
 
-Get current user
+```bash
+adb reverse --list
+```
 
-Edit profile
+Untuk USB + ADB Reverse, API Flutter menggunakan:
 
-Change PIN
+```text
+http://127.0.0.1:8000/api
+```
 
-Wallet
+---
 
-Melihat saldo
+# 🖥️📱 Menjalankan Semua
 
-Menyembunyikan/menampilkan saldo
+### Terminal 1 — Laravel
 
-Top Up
+```powershell
+cd D:\project\ipay\backend
+php artisan serve --host=0.0.0.0 --port=8000
+```
 
-Riwayat Top Up
+### Terminal 2 — React
 
-Payment methods
+```powershell
+cd D:\project\ipay\frontend
+npm run dev -- --host 0.0.0.0 --port=5173
+```
 
-Simulasi DANA
+### Terminal 3 — Flutter
 
-Simulasi GoPay
+```powershell
+cd D:\project\ipay\ipay_flutter
+adb devices
+adb reverse tcp:8000 tcp:8000
+flutter run
+```
 
-Simulasi BCA
+Development architecture:
 
-Saldo iPay
+```text
+                 ┌────────────────────┐
+                 │    Laravel API     │
+                 │       :8000        │
+                 └─────────┬──────────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+       ┌──────▼───────┐         ┌───────▼────────┐
+       │  React Web   │         │ Flutter Android │
+       │    :5173     │         │   USB / LAN    │
+       └──────────────┘         └────────────────┘
+```
 
-Transfer
+---
 
-Transfer menggunakan iPay ID
+# 🔑 Akun Demo
 
-Cek user tujuan
+Akun development/testing:
 
-Validasi saldo
+| User | Email | iPay ID | PIN |
+|---|---|---|---|
+| Yanuar | `yanuar@ipay.test` | `IPY0000001` | `123456` |
+| Budi | `budi@ipay.test` | `IPY0000002` | `123456` |
+| Citra | `citra@ipay.test` | `IPY0000003` | `123456` |
 
-Validasi PIN
+> Akun tersebut digunakan untuk development/testing dan tidak ditujukan untuk production.
 
-Pencegahan transfer ke akun sendiri
+---
 
-Detail transaksi
+# 🔌 API Endpoint
 
-Payment Request / Tagihan
+Semua endpoint menggunakan prefix:
 
-Membuat payment request
+```text
+/api
+```
 
-Nominal
+## 🔐 Authentication
 
-Deskripsi/catatan
+| Method | Endpoint |
+|---|---|
+| POST | `/api/auth/login` |
+| POST | `/api/auth/register` |
+| POST | `/api/auth/logout` |
+| GET | `/api/auth/me` |
+| PUT | `/api/auth/profile` |
+| PUT | `/api/auth/pin` |
 
-Incoming payment requests
+## 💰 Wallet
 
-Outgoing payment requests
+| Method | Endpoint |
+|---|---|
+| GET | `/api/wallet` |
+| POST | `/api/wallet/topup` |
+| GET | `/api/wallet/topup/history` |
+| GET | `/api/wallet/methods` |
 
-Status pending/accepted/rejected
+## 💸 Transactions
 
-Membayar tagihan
+| Method | Endpoint |
+|---|---|
+| GET | `/api/transactions` |
+| POST | `/api/transactions/transfer` |
+| GET | `/api/transactions/check-user/{ipay_id}` |
+| GET | `/api/transactions/{code}` |
 
-Menolak tagihan
+## 🧾 Payments
 
-Membatalkan request
+| Method | Endpoint |
+|---|---|
+| POST | `/api/payments/request` |
+| GET | `/api/payments/incoming` |
+| GET | `/api/payments/outgoing` |
+| POST | `/api/payments/{id}/pay` |
+| POST | `/api/payments/pay-direct` |
+| POST | `/api/payments/{id}/reject` |
+| POST | `/api/payments/{id}/cancel` |
 
-Bayar Langsung
+Endpoint yang membutuhkan authentication menggunakan **Bearer Token**.
 
-Flow:
+---
 
+# 💸 Alur Pembayaran
+
+## ⚡ Bayar Langsung
+
+```text
 iPay ID
    ↓
-Cek User
+Check User
    ↓
 Nominal
    ↓
@@ -304,761 +456,362 @@ PIN
    ↓
 Pembayaran
    ↓
-Bukti / hasil transaksi
+Transaksi Berhasil
+```
 
-Bayar Tagihan
+Endpoint:
 
-Flow:
+```text
+POST /api/payments/pay-direct
+```
 
+---
+
+## 🧾 Bayar Tagihan
+
+```text
 Daftar Tagihan
-   ↓
+      ↓
 Pilih Tagihan
-   ↓
+      ↓
 Detail
-   ↓
-Pilih Sumber Dana
-   ↓
+      ↓
 Validasi Saldo
-   ↓
+      ↓
+Sumber Dana
+      ↓
 PIN
-   ↓
+      ↓
 Bayar
-   ↓
-Bukti Pembayaran
+      ↓
+Transaksi Berhasil
+```
 
-QR
+Endpoint:
 
-My QR
-
-Generate QR berdasarkan iPay ID
-
-Scan QR menggunakan kamera
-
-Fallback input iPay ID secara manual
-
-Lanjut ke flow pembayaran
-
-History
-
-Riwayat transaksi
-
-Filter transaksi
-
-Detail transaksi
-
-Status transaksi
-
-Bukti/receipt
-
-Persyaratan
-
-Pastikan environment development memiliki:
-
-Git
-
-PHP
-
-Composer
-
-MySQL
-
-Node.js + npm
-
-Flutter SDK
-
-Android SDK
-
-ADB untuk testing menggunakan HP Android
-
-Untuk Flutter Android melalui USB, USB Debugging harus aktif dan device harus muncul pada:
-
-adb devices
-
-Instalasi
-
-Clone repository:
-
-git clone https://github.com/khusaery01/iPay.git
-cd iPay
-
-Konfigurasi Backend
-
-Masuk ke backend:
-
-cd backend
-
-Install dependency:
-
-composer install
-
-Buat file environment dari .env.example jika diperlukan:
-
-cp .env.example .env
-
-Pada Windows PowerShell dapat menggunakan:
-
-Copy-Item .env.example .env
-
-Generate application key:
-
-php artisan key:generate
-
-Atur koneksi MySQL pada .env.
-
-Contoh:
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=ipay_db
-DB_USERNAME=root
-DB_PASSWORD=
-
-Jalankan migration/seeder sesuai kondisi database/project yang digunakan.
-
-Jangan memasukkan password database, token, atau secret production ke repository.
-
-Menjalankan Backend
-
-Dari folder backend:
-
-php artisan serve --host=0.0.0.0 --port=8000
-
-Backend/API berjalan pada:
-
-http://127.0.0.1:8000
-
-API:
-
-http://127.0.0.1:8000/api
-
-Port 8000 digunakan oleh Laravel.
-
-Menjalankan React
-
-Buka terminal baru:
-
-cd frontend
-npm install
-
-Jalankan development server:
-
-npm run dev -- --host 0.0.0.0 --port=5173
-
-React berjalan pada:
-
-http://localhost:5173
-
-atau dari komputer lain di jaringan:
-
-http://IP-KOMPUTER:5173
-
-Penting
-
-Jangan menjalankan React pada port 8000, karena port 8000 digunakan Laravel.
-
-Laravel = 8000
-React   = 5173
-
-Konfigurasi API React menggunakan environment variable lokal seperti:
-
-VITE_API_URL=http://IP-KOMPUTER:8000/api
-
-File environment lokal seperti frontend/.env jangan di-commit jika memang berisi konfigurasi lokal.
-
-Menjalankan Flutter Android
-
-Masuk ke project Flutter:
-
-cd ipay_flutter
-flutter pub get
-
-Cek device:
-
-adb devices
-
-Jika HP terdeteksi, aktifkan reverse port:
-
-adb reverse tcp:8000 tcp:8000
-
-Kemudian jalankan:
-
-flutter run
-
-Flutter melalui USB + ADB Reverse
-
-Untuk mode USB, Flutter dapat diarahkan ke:
-
-http://127.0.0.1:8000/api
-
-adb reverse membuat port 8000 pada Android diteruskan ke port 8000 pada komputer development.
-
-Cek reverse port:
-
-adb reverse --list
-
-Menjalankan Semua Sekaligus
-
-Terminal 1 — Laravel
-
-cd D:\project\ipay\backend
-php artisan serve --host=0.0.0.0 --port=8000
-
-Terminal 2 — React
-
-cd D:\project\ipay\frontend
-npm run dev -- --host 0.0.0.0 --port=5173
-
-Terminal 3 — Flutter
-
-Jika menggunakan HP Android melalui USB:
-
-cd D:\project\ipay\ipay_flutter
-adb devices
-adb reverse tcp:8000 tcp:8000
-flutter run
-
-Jadi workflow development utama:
-
-Laravel  → :8000
-React    → :5173
-Flutter  → HP Android
-
-Akun Demo
-
-Akun development/demo yang digunakan pada project:
-
-User
-
-Email
-
-iPay ID
-
-PIN
-
-Yanuar
-
-yanuar@ipay.test
-
-IPY0000001
-
-123456
-
-Budi
-
-budi@ipay.test
-
-IPY0000002
-
-123456
-
-Citra
-
-citra@ipay.test
-
-IPY0000003
-
-123456
-
-Akun di atas digunakan untuk development/testing. Jangan gunakan kredensial demo untuk production.
-
-API Endpoint
-
-Semua endpoint berada di bawah prefix:
-
-/api
-
-Authentication
-
-POST /api/auth/login
-POST /api/auth/register
-POST /api/auth/logout
-GET  /api/auth/me
-PUT  /api/auth/profile
-PUT  /api/auth/pin
-
-Wallet
-
-GET  /api/wallet
-POST /api/wallet/topup
-GET  /api/wallet/topup/history
-GET  /api/wallet/methods
-
-Transactions
-
-GET  /api/transactions
-POST /api/transactions/transfer
-GET  /api/transactions/check-user/{ipay_id}
-GET  /api/transactions/{code}
-
-Payments
-
-POST /api/payments/request
-GET  /api/payments/incoming
-GET  /api/payments/outgoing
+```text
 POST /api/payments/{id}/pay
-POST /api/payments/pay-direct
-POST /api/payments/{id}/reject
-POST /api/payments/{id}/cancel
+```
 
-Endpoint protected menggunakan autentikasi Bearer Token sesuai implementasi API.
+---
 
-Alur Pembayaran
+## 📩 Request Payment
 
-Pay Direct
-
-Pay Direct digunakan untuk melakukan pembayaran langsung ke user berdasarkan iPay ID.
-
-Masukkan iPay ID
-       ↓
-Check User
-       ↓
-Masukkan nominal
-       ↓
-Masukkan deskripsi
-       ↓
-Pilih sumber dana
-       ↓
-PIN 6 digit
-       ↓
-POST /api/payments/pay-direct
-       ↓
-Transaksi berhasil
-
-Pay Bills
-
-Bayar Tagihan menggunakan payment request yang masuk:
-
-GET /api/payments/incoming
-       ↓
-Pilih tagihan
-       ↓
-Lihat detail
-       ↓
-Validasi saldo
-       ↓
-Pilih sumber dana
-       ↓
-PIN
-       ↓
-POST /api/payments/{id}/pay
-       ↓
-Saldo dan status transaksi diperbarui
-
+```text
+Pilih User
+    ↓
+Nominal
+    ↓
+Deskripsi
+    ↓
 Request Payment
+    ↓
+Payment Request Dibuat
+```
 
-Pilih user yang diminta membayar
-       ↓
-Masukkan nominal
-       ↓
-Masukkan deskripsi/catatan
-       ↓
+Endpoint:
+
+```text
 POST /api/payments/request
-       ↓
-Payment request dibuat
+```
 
-QR Payment
+---
 
-QR iPay digunakan untuk merepresentasikan iPay ID.
+# 📱 QR Payment
 
-Flutter menyediakan:
+iPay menyediakan fitur QR berdasarkan **iPay ID**.
 
-QR Saya
+### Flutter
 
-Scan QR menggunakan kamera
+- My QR
+- Generate QR
+- Scan QR dengan kamera
+- Manual iPay ID fallback
 
-Input iPay ID manual sebagai fallback
+Contoh QR:
 
-QR kemudian dapat diteruskan ke flow pembayaran yang sesuai.
+```text
+ipay://pay?id=IPY0000001&name=Yanuar+Pratama
+```
 
-React vs Flutter
+QR dapat digunakan untuk melanjutkan ke flow pembayaran.
 
-Kedua frontend menggunakan backend API yang sama.
+---
 
-Flutter
+# 🖥️ React vs 📱 Flutter
 
-Flutter merupakan frontend mobile Android:
+Kedua frontend menggunakan backend yang sama, tetapi UI disesuaikan dengan platform.
 
-mobile-first
+| React Web | Flutter Android |
+|---|---|
+| Web-first | Mobile-first |
+| Desktop/laptop | Smartphone |
+| Sidebar / Navbar | Bottom Navigation |
+| Card & Table | Card & List |
+| Web Form | Mobile Form |
+| Responsive Web | Mobile Layout |
+| Browser | Android App |
 
-navigation khusus mobile
+### Prinsip Utama
 
-bottom navigation
+**Harus sama:**
 
-dialog/screen mobile
+- Fitur
+- Data
+- Flow
+- Validasi
+- Business logic
+- Hasil transaksi
 
-QR camera scanning
+**Boleh berbeda:**
 
-layout yang disesuaikan dengan layar HP
+- Layout
+- Navigation
+- Card arrangement
+- Table
+- Sidebar
+- Modal / Drawer
+- Responsive behavior
 
-React
+> React tidak dibuat sebagai copy dari Flutter. React tetap dirancang sebagai **modern web application**.
 
-React merupakan frontend web:
+---
 
-web-first
+# 🧪 Testing & Verification
 
-desktop/laptop friendly
-
-responsive
-
-sidebar/navbar web
-
-card/table/form yang sesuai dengan website
-
-responsive untuk ukuran layar lebih kecil
-
-Prinsip penting
-
-Fitur dan flow harus sama, tetapi tampilan tidak harus sama.
-
-Flutter
-= Mobile UI + fitur lengkap
-
-React
-= Web UI + fitur lengkap
-
-React tidak perlu dibuat seperti aplikasi Flutter. React harus tetap terasa sebagai website modern.
-
-Troubleshooting
-
-Laravel tidak dapat dijalankan
-
-Pastikan port 8000 tidak sedang digunakan.
-
-Jalankan:
-
-php artisan serve --host=0.0.0.0 --port=8000
-
-React tidak dapat mengakses API
-
-Periksa:
-
-Laravel sedang berjalan.
-
-API berada di port 8000.
-
-VITE_API_URL menunjuk ke URL API yang benar.
-
-CORS Laravel mengizinkan origin React.
-
-Browser tidak sedang menggunakan konfigurasi environment lama.
-
-Setelah mengubah environment, restart Vite.
-
-Flutter HP tidak dapat login
-
-Periksa:
-
-adb devices
-
-Pastikan HP muncul sebagai device.
-
-Kemudian:
-
-adb reverse tcp:8000 tcp:8000
-
-Cek:
-
-adb reverse --list
-
-Pastikan Flutter menggunakan API:
-
-http://127.0.0.1:8000/api
-
-Kemudian jalankan kembali:
-
-flutter run
-
-Port React dan Laravel bentrok
-
-Gunakan:
-
-Laravel = 8000
-React   = 5173
-
-Jangan menjalankan React menggunakan port 8000.
-
-Database tidak tersambung
-
-Periksa .env Laravel:
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=ipay_db
-DB_USERNAME=root
-DB_PASSWORD=
-
-Pastikan MySQL aktif dan database tersedia.
-
-Testing & Verification
-
-React
+## React
 
 Build production:
 
+```bash
 cd frontend
 npm run build
+```
 
-Flutter
+## Flutter
 
-Analisis project:
+Analyze:
 
+```bash
 cd ipay_flutter
 flutter analyze
+```
 
-Jalankan test:
+Run tests:
 
+```bash
 flutter test
+```
 
-Build APK debug:
+Build APK:
 
+```bash
 flutter build apk --debug
+```
 
-APK debug akan berada di:
+APK:
 
+```text
 ipay_flutter/build/app/outputs/flutter-apk/app-debug.apk
+```
 
-Device Android
+## Android Device
 
 Cek device:
 
+```bash
 adb devices
+```
 
-Cek reverse:
+Cek reverse port:
 
+```bash
 adb reverse --list
+```
 
-Catatan Development
+---
 
-Backend adalah sumber API bersama
+# 🐛 Troubleshooting
 
-Jangan membuat logic transaksi berbeda antara React dan Flutter jika backend sudah menyediakan endpoint yang sama.
+### Laravel tidak berjalan
 
-Jika API contract berubah:
+Pastikan port `8000` tidak sedang digunakan.
 
-Backend
-   ↓
-React harus disesuaikan
-Flutter harus disesuaikan
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+```
 
-Environment
+### React tidak dapat mengakses API
 
-Jangan commit file environment lokal yang mengandung konfigurasi sensitif.
+Periksa:
 
-Contoh:
+- Laravel sudah berjalan
+- API menggunakan port `8000`
+- `VITE_API_URL` benar
+- CORS Laravel mengizinkan origin React
+- Restart Vite setelah mengubah `.env`
 
+### Flutter tidak dapat login
+
+Cek:
+
+```bash
+adb devices
+```
+
+Kemudian:
+
+```bash
+adb reverse tcp:8000 tcp:8000
+```
+
+Cek:
+
+```bash
+adb reverse --list
+```
+
+Pastikan API Flutter:
+
+```text
+http://127.0.0.1:8000/api
+```
+
+### Database tidak tersambung
+
+Periksa `.env` Laravel:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=ipay_db
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+Pastikan MySQL aktif dan database tersedia.
+
+---
+
+# 🔒 Environment & Security
+
+Jangan commit file environment lokal:
+
+```text
 frontend/.env
+backend/.env
+```
 
-Pastikan file tersebut tetap sesuai .gitignore project.
+Jangan menyimpan di repository:
 
-PIN dan Token
+- Password production
+- Token production
+- Secret key
+- Credential database production
 
-Jangan menyimpan:
+Pastikan konfigurasi lokal tetap berada di `.gitignore`.
 
-password production
+---
 
-token production
+# 📊 Status Project
 
-secret key
+| Component | Status |
+|---|---|
+| Laravel REST API | ✅ Implemented |
+| MySQL | ✅ Implemented |
+| Authentication | ✅ Implemented |
+| Wallet | ✅ Implemented |
+| Top Up | ✅ Implemented |
+| Transfer | ✅ Implemented |
+| Payment Request | ✅ Implemented |
+| Pay Bills | ✅ Implemented |
+| Pay Direct | ✅ Implemented |
+| QR Payment | ✅ Implemented |
+| Transaction History | ✅ Implemented |
+| Flutter Android | ✅ Implemented |
+| React Web | ✅ Implemented |
+| React UI Polishing | 🚧 Ongoing |
 
-credential database production
+---
 
-di source code atau README.
+# 🚧 Future Improvements
 
-TODO / Improvement
+### React Web
 
-Project sudah memiliki fitur utama, tetapi UI React masih dapat dirapikan.
+- [ ] Dashboard UI polishing
+- [ ] Sidebar/Navbar refinement
+- [ ] Consistent spacing
+- [ ] Consistent typography
+- [ ] History table refinement
+- [ ] Payment card refinement
+- [ ] Profile UI refinement
+- [ ] Loading states
+- [ ] Empty states
+- [ ] Error states
+- [ ] PIN modal refinement
+- [ ] Responsive desktop/tablet/mobile web
 
-Checklist improvement:
+### General
 
-React UI
+- [ ] Additional payment methods
+- [ ] Production payment gateway integration
+- [ ] Additional security hardening
+- [ ] More automated tests
 
-Rapikan Dashboard spacing dan ukuran card.
+---
 
-Rapikan Sidebar/Navbar.
-
-Konsistensikan active navigation.
-
-Rapikan halaman Bayar Tagihan.
-
-Rapikan card/list tagihan.
-
-Rapikan halaman Bayar Langsung.
-
-Rapikan form Top Up.
-
-Rapikan halaman History.
-
-Rapikan tabel dan filter History.
-
-Rapikan Profile.
-
-Konsistensikan border radius.
-
-Konsistensikan spacing.
-
-Konsistensikan typography.
-
-Konsistensikan status badge.
-
-Rapikan loading state.
-
-Rapikan empty state.
-
-Rapikan error state.
-
-Rapikan dialog/modal PIN.
-
-Pastikan responsive pada desktop, tablet, dan mobile web.
-
-Prinsip UI
-
-React tidak perlu dibuat identik dengan Flutter.
-
-Yang harus identik:
-
-fitur
-
-data
-
-flow
-
-validasi
-
-hasil transaksi
-
-Yang boleh berbeda:
-
-layout
-
-navigation
-
-card arrangement
-
-tabel
-
-sidebar
-
-modal/drawer
-
-responsive behavior
-
-Git Workflow
+# 🔀 Git Workflow
 
 Cek perubahan:
 
+```bash
 git status
+```
 
-Tambahkan source code:
+Tambahkan perubahan:
 
+```bash
 git add backend frontend ipay_flutter README.md
-
-Periksa staged files:
-
-git status
+```
 
 Commit:
 
+```bash
 git commit -m "Update iPay project"
+```
 
 Push:
 
+```bash
 git push origin main
+```
 
-Penting
+> Jangan menggunakan `git add .` secara sembarangan jika terdapat file `.env` lokal yang belum masuk `.gitignore`.
 
-Jangan menambahkan file lokal yang berisi credential atau environment rahasia.
+---
 
-Contoh:
+# 👨‍💻 Author
 
-frontend/.env
+**Muhammad Yanuar Khusaeri**
 
-Repository
+iPay dibuat sebagai project pembelajaran dan pengembangan aplikasi **Digital Wallet & Payment System** dengan arsitektur full-stack.
 
-GitHub:
+---
 
+## 🔗 Repository
+
+**GitHub:**  
 https://github.com/khusaery01/iPay
 
-Status Project
+---
 
-iPay saat ini terdiri dari:
+<div align="center">
 
-Bagian
+### 💳 iPay
 
-Status
+**One Backend · Two Clients · One Payment Experience**
 
-Laravel API
+Laravel REST API · React Web · Flutter Android
 
-Implemented
-
-MySQL
-
-Implemented
-
-Authentication
-
-Implemented
-
-Wallet
-
-Implemented
-
-Top Up
-
-Implemented
-
-Transfer
-
-Implemented
-
-Payment Request
-
-Implemented
-
-Pay Bills
-
-Implemented
-
-Pay Direct
-
-Implemented
-
-QR
-
-Implemented
-
-Transaction History
-
-Implemented
-
-Flutter Android
-
-Implemented
-
-React Web
-
-Implemented
-
-React UI polishing
-
-Ongoing
-
-Development Philosophy
-
-iPay menggunakan satu backend dengan dua client:
-
-                    iPay API
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-          React                Flutter
-           Web                 Android
-
-Satu backend, dua pengalaman pengguna.
-
-Flutter berfokus pada pengalaman mobile.
-
-React berfokus pada pengalaman web.
-
-Keduanya tetap menggunakan data, endpoint, dan business flow iPay yang sama.
+</div>
