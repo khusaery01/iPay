@@ -1052,6 +1052,19 @@ body {
 }
 
 @media (max-width: 767px) {
+  .desktop-sidebar {
+    display: none !important;
+  }
+  .main-layout-wrapper {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+  .hide-mobile {
+    display: none !important;
+  }
   .app-sidebar {
     display: none !important;
   }

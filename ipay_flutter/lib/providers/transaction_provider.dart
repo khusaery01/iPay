@@ -12,6 +12,7 @@ class TransactionProvider extends ChangeNotifier {
   String _selectedStatus = 'all';
   int _currentPage = 1;
   int _lastPage = 1;
+  bool _hasInitialLoaded = false;
 
   List<TransactionModel> get transactions => _transactions;
   bool get isLoading => _isLoading;
@@ -20,19 +21,31 @@ class TransactionProvider extends ChangeNotifier {
   String get selectedStatus => _selectedStatus;
   int get currentPage => _currentPage;
   int get lastPage => _lastPage;
+  bool get hasInitialLoaded => _hasInitialLoaded;
 
   Future<void> fetchTransactions({
     String? type,
     String? status,
     bool refresh = false,
   }) async {
-    if (refresh) {
-      _currentPage = 1;
-      _transactions.clear();
+    // Guard 1: Cegah multiple/concurrent fetch berulang saat request masih berlangsung
+    if (_isLoading) return;
+
+    final newType = type ?? _selectedType;
+    final newStatus = status ?? _selectedStatus;
+    final bool filterChanged = (newType != _selectedType || newStatus != _selectedStatus);
+
+    // Guard 2: Jika data sudah pernah dimuat dan filter tidak berubah serta bukan pull-to-refresh, jangan fetch ulang
+    if (!refresh && !filterChanged && _hasInitialLoaded) {
+      return;
     }
 
-    if (type != null) _selectedType = type;
-    if (status != null) _selectedStatus = status;
+    _selectedType = newType;
+    _selectedStatus = newStatus;
+
+    if (refresh || filterChanged) {
+      _currentPage = 1;
+    }
 
     _isLoading = true;
     _errorMessage = null;
@@ -48,10 +61,11 @@ class TransactionProvider extends ChangeNotifier {
       _transactions = res['data'] as List<TransactionModel>;
       _currentPage = res['current_page'] as int;
       _lastPage = res['last_page'] as int;
-      _isLoading = false;
-      notifyListeners();
+      _hasInitialLoaded = true;
     } catch (e) {
       _errorMessage = e.toString();
+      // Error tercatat, tidak memicu auto-retry
+    } finally {
       _isLoading = false;
       notifyListeners();
     }

@@ -23,12 +23,11 @@ class CustomButton extends StatelessWidget {
     if (isOutlined) {
       return OutlinedButton(
         onPressed: isLoading ? null : onPressed,
-        style: color != null
-            ? OutlinedButton.styleFrom(
-                foregroundColor: color,
-                side: BorderSide(color: color!),
-              )
-            : null,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(50),
+          foregroundColor: color,
+          side: color != null ? BorderSide(color: color!) : null,
+        ),
         child: isLoading
             ? const SizedBox(
                 height: 20,
@@ -51,9 +50,10 @@ class CustomButton extends StatelessWidget {
 
     return ElevatedButton(
       onPressed: isLoading ? null : onPressed,
-      style: color != null
-          ? ElevatedButton.styleFrom(backgroundColor: color)
-          : null,
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size.fromHeight(50),
+        backgroundColor: color,
+      ),
       child: isLoading
           ? const SizedBox(
               height: 20,

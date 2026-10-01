@@ -23,21 +23,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> checkAuthStatus() async {
-    final hasToken = await TokenStorage.hasToken();
-    if (!hasToken) {
-      _status = AuthStatus.unauthenticated;
-      notifyListeners();
-      return;
-    }
-
-    try {
-      _user = await _authService.getProfile();
-      _status = AuthStatus.authenticated;
-    } catch (_) {
-      await TokenStorage.clearAll();
-      _user = null;
-      _status = AuthStatus.unauthenticated;
-    }
+    await TokenStorage.clearAll();
+    _user = null;
+    _status = AuthStatus.unauthenticated;
     notifyListeners();
   }
 

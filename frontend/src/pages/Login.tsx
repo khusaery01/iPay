@@ -1,140 +1,252 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import { CustomButton } from '../components/CustomButton';
+import { CustomTextField } from '../components/CustomTextField';
+import { WalletIcon, UserIcon, LockIcon } from '../components/Icons';
 
-const Login: React.FC = () => {
+export const Login: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
   const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [openingDoor, setOpeningDoor] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrorMessage(null);
 
-    if (pin.length !== 6 || !/^\d+$/.test(pin)) {
-      setError('PIN harus berupa 6 digit angka.');
+    const cleanIdentifier = identifier.trim();
+    const cleanPin = pin.trim();
+
+    if (!cleanIdentifier) {
+      setErrorMessage('Email / No HP / iPay ID wajib diisi.');
       return;
     }
 
-    setLoading(true);
+    if (cleanPin.length !== 6 || !/^\d+$/.test(cleanPin)) {
+      setErrorMessage('PIN harus berupa 6-digit angka.');
+      return;
+    }
 
     try {
-      const response = await api.post('/auth/login', {
-        identifier,
-        pin,
+      setLoading(true);
+      const res = await api.post('/auth/login', {
+        identifier: cleanIdentifier,
+        pin: cleanPin,
       });
 
-      // Simpan token di localStorage
-      localStorage.setItem('ipay_token', response.data.token);
-      localStorage.setItem('ipay_user_name', response.data.user.name);
-      localStorage.setItem('ipay_user_id', response.data.user.ipay_id);
-
-      // Animasi pintu terbuka sebelum pengalihan rute
-      setOpeningDoor(true);
-      setTimeout(() => {
+      if (res.data?.token) {
+        localStorage.setItem('ipay_token', res.data.token);
+        if (res.data.user?.name) {
+          localStorage.setItem('ipay_user_name', res.data.user.name);
+        }
+        if (res.data.user?.ipay_id) {
+          localStorage.setItem('ipay_user_id', res.data.user.ipay_id);
+        }
         navigate('/home');
-      }, 700);
+      } else {
+        setErrorMessage(res.data?.message || 'Login gagal.');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login gagal. Periksa identifier dan PIN Anda.');
+      setErrorMessage(err.response?.data?.message || err.message || 'Login gagal. Periksa identifier dan PIN Anda.');
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className={`split-auth-container ${openingDoor ? 'opening-door' : ''}`}>
-      {/* Left Panel: Indigo Branding */}
-      <div className={`auth-panel-left ${openingDoor ? 'door-open-left' : ''}`}>
-        <div className="brand-glow-bg"></div>
-        <div className="brand-grid-pattern"></div>
-        
-        <div className="auth-brand-top stagger-item" style={{ animationDelay: '100ms' }}>
-          <div className="header-logo-badge" style={{ width: '44px', height: '44px', fontSize: '1.25rem' }}>iP</div>
-          <span className="brand-title">iPay Platform</span>
-        </div>
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#F1F5F9',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          minHeight: '100vh',
+          backgroundColor: '#F8FAFC',
+          padding: '36px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          boxShadow: '0 0 30px rgba(15, 23, 42, 0.08)',
+        }}
+      >
+        <form onSubmit={handleLogin}>
+          {/* App Branding */}
+          <div
+            style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '20px',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px auto',
+              boxShadow: '0 8px 20px rgba(79, 70, 229, 0.3)',
+            }}
+          >
+            <WalletIcon size={36} color="#FFFFFF" />
+          </div>
 
-        <div className="auth-brand-center stagger-item" style={{ animationDelay: '200ms' }}>
-          <div className="brand-badge-pill">Fintech Pembayaran Instan</div>
-          <h1 className="brand-headline">Solusi Pembayaran & Transaksi Digital Masa Depan.</h1>
-          <p className="brand-subtext">
-            Kelola dompet digital, transfer tanpa biaya tambahan, dan otorisasi pembayaran bisnis dalam satu platform terpadu.
+          <h1
+            style={{
+              fontSize: '24px',
+              fontWeight: 800,
+              color: '#0F172A',
+              textAlign: 'center',
+              marginBottom: '8px',
+            }}
+          >
+            Selamat Datang di iPay
+          </h1>
+
+          <p
+            style={{
+              fontSize: '13.5px',
+              color: '#64748B',
+              textAlign: 'center',
+              marginBottom: '32px',
+              lineHeight: 1.45,
+            }}
+          >
+            Masuk menggunakan Email, Nomor HP, atau iPay ID dan PIN 6-digit
           </p>
 
-          <div className="brand-feature-card">
-            <div className="feature-icon">🛡️</div>
-            <div>
-              <div className="feature-title">Keamanan Tingkat Tinggi</div>
-              <div className="feature-desc">Enkripsi transaksi & verifikasi PIN 6-digit privat.</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="auth-brand-bottom stagger-item" style={{ animationDelay: '300ms' }}>
-          <span>© 2026 iPay Digital Ecosystem. All rights reserved.</span>
-        </div>
-      </div>
-
-      {/* Right Panel: Clean Integrated Form */}
-      <div className={`auth-panel-right ${openingDoor ? 'door-open-right' : ''}`}>
-        <div className="auth-form-wrapper">
-          <div className="auth-form-header stagger-item" style={{ animationDelay: '200ms' }}>
-            <h2 className="form-title">Selamat Datang Kembali</h2>
-            <p className="form-subtitle">Masuk ke akun iPay Anda untuk melanjutkan transaksi</p>
-          </div>
-
-          {error && (
-            <div className="alert-error stagger-item" style={{ animationDelay: '250ms' }}>
-              <span>⚠️</span>
-              <span>{error}</span>
+          {errorMessage && (
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: '#FEE2E2',
+                color: '#B91C1C',
+                borderRadius: '12px',
+                fontSize: '13px',
+                fontWeight: 500,
+                marginBottom: '18px',
+                textAlign: 'center',
+              }}
+            >
+              {errorMessage}
             </div>
           )}
 
-          <form onSubmit={handleLogin} style={{ width: '100%' }}>
-            <div className="form-group stagger-item" style={{ animationDelay: '300ms' }}>
-              <label className="form-label">Email, Nomor HP, atau iPay ID</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Contoh: yanuar@ipay.test atau IPY0000001"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                required
-                autoComplete="username"
-              />
-            </div>
+          {/* Identifier Input */}
+          <CustomTextField
+            label="Email / No HP / iPay ID"
+            placeholder="Contoh: user@email.com atau IPY1234567"
+            prefixIcon={<UserIcon size={18} />}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            required
+            autoFocus
+          />
 
-            <div className="form-group stagger-item" style={{ animationDelay: '400ms' }}>
-              <label className="form-label">PIN Keamanan (6 Digit Angka)</label>
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                className="form-input"
-                placeholder="••••••"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                required
-                autoComplete="current-password"
-              />
-            </div>
+          {/* PIN Input */}
+          <CustomTextField
+            label="PIN (6 Digit)"
+            placeholder="••••••"
+            type="password"
+            maxLength={6}
+            prefixIcon={<LockIcon size={18} />}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+            required
+          />
 
-            <button
-              type="submit"
-              className="btn-primary stagger-item"
-              style={{ animationDelay: '500ms', marginTop: '10px' }}
-              disabled={loading || openingDoor}
+          {/* Quick Demo Accounts */}
+          <div style={{ marginTop: '16px', marginBottom: '8px' }}>
+            <p
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#64748B',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
             >
-              {loading ? 'Memverifikasi...' : openingDoor ? 'Membuka Dashboard...' : 'Masuk Sekarang →'}
-            </button>
-          </form>
-
-          <div className="auth-form-footer stagger-item" style={{ animationDelay: '600ms' }}>
-            <span>Belum memiliki akun iPay? </span>
-            <Link to="/register" className="auth-link">Daftar Akun Baru</Link>
+              Akun Uji Coba (Klik untuk Isi Otomatis):
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {[
+                { name: 'Yanuar', id: 'yanuar@ipay.test', pin: '123456' },
+                { name: 'Budi', id: 'budi@ipay.test', pin: '123456' },
+                { name: 'Citra', id: 'citra@ipay.test', pin: '123456' },
+              ].map((acc) => (
+                <button
+                  key={acc.name}
+                  type="button"
+                  onClick={() => {
+                    setIdentifier(acc.id);
+                    setPin(acc.pin);
+                  }}
+                  style={{
+                    flex: '1 1 calc(33.333% - 6px)',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    backgroundColor: '#F1F5F9',
+                    color: '#334155',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#EEF2FF';
+                    e.currentTarget.style.borderColor = '#C7D2FE';
+                    e.currentTarget.style.color = '#4F46E5';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#F1F5F9';
+                    e.currentTarget.style.borderColor = '#E2E8F0';
+                    e.currentTarget.style.color = '#334155';
+                  }}
+                >
+                  ⚡ {acc.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+
+          <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+            <CustomButton
+              text="Masuk Sekarang"
+              type="submit"
+              isLoading={loading}
+            />
+          </div>
+
+          {/* Register Link */}
+          <div
+            style={{
+              textAlign: 'center',
+              fontSize: '13.5px',
+              color: '#64748B',
+            }}
+          >
+            Belum punya akun iPay?{' '}
+            <Link
+              to="/register"
+              style={{
+                color: '#4F46E5',
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              Daftar Sekarang
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   );

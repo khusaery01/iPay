@@ -1,48 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../core/theme/app_theme.dart';
-import 'history/history_screen.dart';
-import 'home/home_screen.dart';
-import 'profile/profile_screen.dart';
-import 'qr/scan_qr_screen.dart';
 
-class MainNavigationScreen extends StatefulWidget {
-  final int initialIndex;
+class MainNavigationScreen extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
 
-  const MainNavigationScreen({super.key, this.initialIndex = 0});
-
-  @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
-}
-
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  late int _currentIndex;
-
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    HistoryScreen(),
-    ScanQrScreen(),
-    ProfileScreen(),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex;
-  }
+  const MainNavigationScreen({
+    super.key,
+    required this.navigationShell,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: navigationShell,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
+        currentIndex: navigationShell.currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          );
         },
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textMuted,

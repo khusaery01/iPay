@@ -15,10 +15,10 @@ class TransactionUser {
 
   factory TransactionUser.fromJson(Map<String, dynamic> json) {
     return TransactionUser(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      name: json['name'] ?? '',
-      ipayId: json['ipay_id'] ?? json['ipayId'] ?? '',
-      phone: json['phone'],
+      id: json['id'] is int ? json['id'] : int.tryParse((json['id'] ?? '0').toString()) ?? 0,
+      name: json['name']?.toString() ?? '',
+      ipayId: json['ipay_id']?.toString() ?? json['ipayId']?.toString() ?? '',
+      phone: json['phone']?.toString(),
     );
   }
 
@@ -73,23 +73,29 @@ class TransactionModel {
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     return TransactionModel(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      transactionCode: json['transaction_code'] ?? json['transactionCode'] ?? '',
-      type: json['type'] ?? 'transfer',
+      id: json['id'] is int ? json['id'] : int.tryParse((json['id'] ?? '0').toString()) ?? 0,
+      transactionCode: json['transaction_code']?.toString() ?? json['transactionCode']?.toString() ?? '',
+      type: json['type']?.toString() ?? 'transfer',
       senderId: json['sender_id'] != null ? (json['sender_id'] is int ? json['sender_id'] : int.tryParse(json['sender_id'].toString())) : null,
       receiverId: json['receiver_id'] != null ? (json['receiver_id'] is int ? json['receiver_id'] : int.tryParse(json['receiver_id'].toString())) : null,
       amount: json['amount'] != null ? double.tryParse(json['amount'].toString()) ?? 0.0 : 0.0,
       fee: json['fee'] != null ? double.tryParse(json['fee'].toString()) ?? 0.0 : 0.0,
       paymentMethodId: json['payment_method_id'] != null ? (json['payment_method_id'] is int ? json['payment_method_id'] : int.tryParse(json['payment_method_id'].toString())) : null,
-      description: json['description'],
-      status: json['status'] ?? 'pending',
-      otpCode: json['otp_code'] ?? json['payment_code'],
-      direction: json['direction'],
-      sender: json['sender'] != null ? TransactionUser.fromJson(json['sender']) : null,
-      receiver: json['receiver'] != null ? TransactionUser.fromJson(json['receiver']) : null,
-      paymentMethod: json['payment_method'] != null ? PaymentMethodModel.fromJson(json['payment_method']) : null,
-      createdAt: json['created_at'],
-      completedAt: json['completed_at'],
+      description: json['description']?.toString(),
+      status: json['status']?.toString() ?? 'pending',
+      otpCode: json['otp_code']?.toString() ?? json['payment_code']?.toString(),
+      direction: json['direction']?.toString(),
+      sender: json['sender'] != null && json['sender'] is Map
+          ? TransactionUser.fromJson(Map<String, dynamic>.from(json['sender'] as Map))
+          : null,
+      receiver: json['receiver'] != null && json['receiver'] is Map
+          ? TransactionUser.fromJson(Map<String, dynamic>.from(json['receiver'] as Map))
+          : null,
+      paymentMethod: json['payment_method'] != null && json['payment_method'] is Map
+          ? PaymentMethodModel.fromJson(Map<String, dynamic>.from(json['payment_method'] as Map))
+          : null,
+      createdAt: json['created_at']?.toString(),
+      completedAt: json['completed_at']?.toString(),
     );
   }
 

@@ -2,40 +2,75 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { AppLayout } from '../layouts/AppLayout';
-import type { User } from '../types';
+import { AppBar } from '../components/AppBar';
+import { CustomButton } from '../components/CustomButton';
+import { CustomTextField } from '../components/CustomTextField';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
+import {
+  UserIcon,
+  LockIcon,
+  QrCodeIcon,
+  LogoutIcon,
+  CopyIcon,
+  ChevronRightIcon,
+  CloseIcon,
+} from '../components/Icons';
 
-const ProfilePage: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  
-  // PIN change state
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  ipay_id: string;
+  balance: number;
+}
+
+export const Profile: React.FC = () => {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // Edit Profile Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  // Change PIN Modal State
+  const [showPinModal, setShowPinModal] = useState(false);
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
-  const [pinConfirmation, setPinConfirmation] = useState('');
-  
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [loadingPin, setLoadingPin] = useState(false);
-  const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [pinMsg, setPinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [confirmPin, setConfirmPin] = useState('');
+  const [isUpdatingPin, setIsUpdatingPin] = useState(false);
+  const [pinError, setPinError] = useState('');
 
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const fetchProfile = async () => {
     try {
-      const res = await api.get('/auth/me');
-      if (res.data?.user) {
-        const u = res.data.user;
-        setUser(u);
-        setName(u.name || '');
-        setEmail(u.email || '');
-        setPhone(u.phone || '');
-        localStorage.setItem('ipay_user_name', u.name);
+      const res = await api.get<UserProfile>('/auth/me');
+      setProfile(res.data);
+      setEditName(res.data.name);
+      setEditEmail(res.data.email);
+      setEditPhone(res.data.phone || '');
+    } catch {
+      try {
+        const walletRes = await api.get('/wallet');
+        setProfile(walletRes.data);
+        setEditName(walletRes.data.name);
+        setEditEmail(walletRes.data.email || '');
+        setEditPhone(walletRes.data.phone || '');
+      } catch (e) {
+        console.warn('Gagal memuat profil:', e);
       }
-    } catch (err) {
-      console.warn('Gagal memuat profil user:', err);
     }
   };
 
@@ -43,277 +78,529 @@ const ProfilePage: React.FC = () => {
     fetchProfile();
   }, []);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setProfileMsg(null);
-
-    setLoadingProfile(true);
-
-    try {
-      const res = await api.put('/auth/profile', {
-        name,
-        email: email || undefined,
-        phone: phone || undefined,
-      });
-
-      setProfileMsg({ type: 'success', text: res.data.message || 'Profil berhasil diperbarui.' });
-      if (res.data?.user) {
-        setUser(res.data.user);
-        localStorage.setItem('ipay_user_name', res.data.user.name);
-      }
-    } catch (err: any) {
-      setProfileMsg({ type: 'error', text: err.response?.data?.message || 'Gagal memperbarui profil.' });
-    } finally {
-      setLoadingProfile(false);
-    }
-  };
-
-  const handleChangePin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinMsg(null);
-
-    if (oldPin.length !== 6 || !/^\d+$/.test(oldPin)) {
-      setPinMsg({ type: 'error', text: 'PIN lama harus berupa 6 digit angka.' });
-      return;
-    }
-
-    if (newPin.length !== 6 || !/^\d+$/.test(newPin)) {
-      setPinMsg({ type: 'error', text: 'PIN baru harus berupa 6 digit angka.' });
-      return;
-    }
-
-    if (newPin !== pinConfirmation) {
-      setPinMsg({ type: 'error', text: 'Konfirmasi PIN baru tidak cocok.' });
-      return;
-    }
-
-    setLoadingPin(true);
-
-    try {
-      const res = await api.put('/auth/pin', {
-        old_pin: oldPin,
-        new_pin: newPin,
-      });
-
-      setPinMsg({ type: 'success', text: res.data.message || 'PIN berhasil diubah.' });
-      setOldPin('');
-      setNewPin('');
-      setPinConfirmation('');
-    } catch (err: any) {
-      setPinMsg({ type: 'error', text: err.response?.data?.message || 'Gagal mengubah PIN. Pastikan PIN lama benar.' });
-    } finally {
-      setLoadingPin(false);
+  const handleCopyId = () => {
+    if (profile?.ipay_id) {
+      navigator.clipboard.writeText(profile.ipay_id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
-    } catch (err) {
-      console.warn('Logout error:', err);
+    } catch {
+      // ignore
     } finally {
-      localStorage.clear();
+      localStorage.removeItem('ipay_token');
+      localStorage.removeItem('ipay_user_name');
+      localStorage.removeItem('ipay_user_id');
       navigate('/login');
     }
   };
 
-  const handleCopyId = () => {
-    if (user?.ipay_id) {
-      navigator.clipboard.writeText(user.ipay_id);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError('');
+
+    if (!editName.trim()) {
+      setEditError('Nama lengkap wajib diisi.');
+      return;
+    }
+
+    try {
+      setIsUpdatingProfile(true);
+      await api.put('/auth/profile', {
+        name: editName.trim(),
+        email: editEmail.trim(),
+        phone: editPhone.trim() || undefined,
+      });
+
+      setShowEditModal(false);
+      showToast('Profil berhasil diperbarui!');
+      fetchProfile();
+    } catch (err: any) {
+      setEditError(err.response?.data?.message || 'Gagal memperbarui profil.');
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
-  const formatIDR = (val: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(val);
+  const handleSavePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinError('');
+
+    if (oldPin.length !== 6 || newPin.length !== 6 || confirmPin.length !== 6) {
+      setPinError('Semua PIN harus berupa 6-digit angka.');
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      setPinError('PIN baru dan konfirmasi PIN tidak cocok.');
+      return;
+    }
+
+    try {
+      setIsUpdatingPin(true);
+      await api.put('/auth/pin', {
+        old_pin: oldPin,
+        new_pin: newPin,
+        new_pin_confirmation: confirmPin,
+      });
+
+      setShowPinModal(false);
+      setOldPin('');
+      setNewPin('');
+      setConfirmPin('');
+      showToast('PIN iPay berhasil diubah!');
+    } catch (err: any) {
+      setPinError(err.response?.data?.message || 'Gagal mengubah PIN.');
+    } finally {
+      setIsUpdatingPin(false);
+    }
   };
 
+  const userName = profile?.name || localStorage.getItem('ipay_user_name') || 'Pengguna iPay';
+  const ipayId = profile?.ipay_id || localStorage.getItem('ipay_user_id') || '-';
+
   return (
-    <AppLayout
-      userName={user?.name || localStorage.getItem('ipay_user_name') || 'Pengguna'}
-      onLogout={handleLogout}
-      activeTab="profile"
-      onTabChange={(tab) => {
-        if (tab === 'home') navigate('/home');
-        else if (tab === 'bills') navigate('/bills');
-        else if (tab === 'history') navigate('/history');
-      }}
-    >
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '4px' }}>
-          Profil & Pengaturan Akun
-        </h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          Kelola informasi data diri dan PIN keamanan dompet iPay Anda
-        </p>
-      </div>
+    <AppLayout activeTab="profile">
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1100,
+            backgroundColor: '#10B981',
+            color: '#FFFFFF',
+            padding: '10px 20px',
+            borderRadius: '12px',
+            fontSize: '13.5px',
+            fontWeight: 600,
+            boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
 
-      <div className="dashboard-grid">
-        {/* Kolom Kiri: Kartu Identitas & Edit Profil */}
-        <div className="dashboard-left-column">
-          {/* User Info Card */}
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--primary-gradient)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 800 }}>
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '2px' }}>
-                  {user?.name || 'Pengguna iPay'}
-                </h3>
-                <div onClick={handleCopyId} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>
-                    {user?.ipay_id || 'IPY0000000'}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{copied ? '✓ Copied' : '📋'}</span>
-                </div>
-              </div>
-            </div>
+      <AppBar
+        title="Profil Saya"
+        showBack
+        onBack={() => navigate('/home')}
+      />
 
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Saldo iPay:</span>
-                <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{formatIDR(user?.balance || 0)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Email:</span>
-                <span>{user?.email || '-'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Nomor HP:</span>
-                <span>{user?.phone || '-'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Status Akun:</span>
-                <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>Aktif / Terverifikasi</span>
-              </div>
-            </div>
+      <div style={{ padding: '20px' }}>
+        {/* User Info Card */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '20px',
+            border: '1px solid #E2E8F0',
+            padding: '24px 20px',
+            textAlign: 'center',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+            marginBottom: '24px',
+          }}
+        >
+          {/* Avatar */}
+          <div
+            style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(79, 70, 229, 0.15)',
+              color: '#4F46E5',
+              fontSize: '32px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px auto',
+            }}
+          >
+            {userName.charAt(0).toUpperCase()}
           </div>
 
-          {/* Form Update Profile */}
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '16px' }}>Edit Informasi Profil</h3>
+          <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0F172A', margin: '0 0 6px 0' }}>
+            {userName}
+          </h2>
 
-            {profileMsg && (
-              <div style={{ padding: '10px 14px', borderRadius: 'var(--border-radius-sm)', fontSize: '0.85rem', marginBottom: '16px', background: profileMsg.type === 'success' ? 'var(--secondary-light)' : 'var(--danger-light)', color: profileMsg.type === 'success' ? 'var(--secondary)' : 'var(--danger)', border: `1px solid ${profileMsg.type === 'success' ? '#a7f3d0' : '#fecaca'}` }}>
-                {profileMsg.text}
+          {/* iPay ID Pill */}
+          <button
+            type="button"
+            onClick={handleCopyId}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              backgroundColor: 'rgba(79, 70, 229, 0.08)',
+              border: 'none',
+              borderRadius: '20px',
+              color: '#4F46E5',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <span>iPay ID: {ipayId}</span>
+            <CopyIcon size={14} color="#4F46E5" />
+            {copied && <span style={{ fontSize: '11px', color: '#10B981', marginLeft: '4px' }}>✓</span>}
+          </button>
+        </div>
+
+        {/* Menu List */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1px solid #E2E8F0',
+            overflow: 'hidden',
+            marginBottom: '24px',
+          }}
+        >
+          {/* Edit Profil */}
+          <div
+            onClick={() => setShowEditModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '16px',
+              cursor: 'pointer',
+              borderBottom: '1px solid #F1F5F9',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+          >
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                color: '#4F46E5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '14px',
+              }}
+            >
+              <UserIcon size={20} color="#4F46E5" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0F172A' }}>
+                Edit Profil
               </div>
-            )}
-
-            <form onSubmit={handleUpdateProfile}>
-              <div className="form-group">
-                <label className="form-label">Nama Lengkap</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                Ubah nama, email, dan nomor HP
               </div>
+            </div>
+            <ChevronRightIcon size={20} color="#94A3B8" />
+          </div>
 
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-input"
-                  placeholder="email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+          {/* Ganti PIN */}
+          <div
+            onClick={() => setShowPinModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '16px',
+              cursor: 'pointer',
+              borderBottom: '1px solid #F1F5F9',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+          >
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                color: '#4F46E5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '14px',
+              }}
+            >
+              <LockIcon size={20} color="#4F46E5" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0F172A' }}>
+                Ganti PIN iPay
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Nomor Handphone</label>
-                <input
-                  type="tel"
-                  className="form-input"
-                  placeholder="081234567890"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                Ubah 6-digit PIN keamanan Anda
               </div>
+            </div>
+            <ChevronRightIcon size={20} color="#94A3B8" />
+          </div>
 
-              <button type="submit" className="btn-primary" disabled={loadingProfile}>
-                {loadingProfile ? 'Simpan Perubahan...' : 'Simpan Profil'}
-              </button>
-            </form>
+          {/* QR Code */}
+          <div
+            onClick={() => navigate('/my-qr')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '16px',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+          >
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                color: '#4F46E5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '14px',
+              }}
+            >
+              <QrCodeIcon size={20} color="#4F46E5" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0F172A' }}>
+                Tampilkan QR Saya
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                Tunjukkan QR Code untuk terima transfer
+              </div>
+            </div>
+            <ChevronRightIcon size={20} color="#94A3B8" />
           </div>
         </div>
 
-        {/* Kolom Kanan: Ganti PIN Keamanan */}
-        <div className="dashboard-right-column">
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '16px' }}>Ganti PIN Keamanan</h3>
-
-          {pinMsg && (
-            <div style={{ padding: '10px 14px', borderRadius: 'var(--border-radius-sm)', fontSize: '0.85rem', marginBottom: '16px', background: pinMsg.type === 'success' ? 'var(--secondary-light)' : 'var(--danger-light)', color: pinMsg.type === 'success' ? 'var(--secondary)' : 'var(--danger)', border: `1px solid ${pinMsg.type === 'success' ? '#a7f3d0' : '#fecaca'}` }}>
-              {pinMsg.text}
+        {/* Logout Button */}
+        <div
+          onClick={() => setShowLogoutConfirm(true)}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            border: '1px solid #E2E8F0',
+            padding: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            transition: 'background 0.15s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FEE2E2')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+        >
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              color: '#EF4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: '14px',
+            }}
+          >
+            <LogoutIcon size={20} color="#EF4444" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#EF4444' }}>
+              Keluar Akun
             </div>
-          )}
+            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+              Keluar dari aplikasi iPay
+            </div>
+          </div>
+          <ChevronRightIcon size={20} color="#EF4444" />
+        </div>
+      </div>
 
-          <form onSubmit={handleChangePin}>
-            <div className="form-group">
-              <label className="form-label">PIN Lama (6 Digit)</label>
-              <input
+      {/* ─── MODAL: Edit Profile ─── */}
+      {showEditModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowEditModal(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              backgroundColor: '#FFFFFF',
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px',
+              padding: '24px',
+              boxShadow: '0 -8px 30px rgba(15, 23, 42, 0.15)',
+              animation: 'slideUpModal 0.25s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0F172A', margin: 0 }}>
+                Edit Profil
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                <CloseIcon size={20} />
+              </button>
+            </div>
+
+            {editError && (
+              <div style={{ padding: '10px', backgroundColor: '#FEE2E2', color: '#B91C1C', borderRadius: '10px', fontSize: '12.5px', marginBottom: '14px' }}>
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile}>
+              <CustomTextField
+                label="Nama Lengkap"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+              <CustomTextField
+                label="Email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+              />
+              <CustomTextField
+                label="Nomor HP"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+
+              <div style={{ marginTop: '20px' }}>
+                <CustomButton
+                  text="Simpan Perubahan"
+                  type="submit"
+                  isLoading={isUpdatingProfile}
+                />
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: Change PIN ─── */}
+      {showPinModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowPinModal(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              backgroundColor: '#FFFFFF',
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px',
+              padding: '24px',
+              boxShadow: '0 -8px 30px rgba(15, 23, 42, 0.15)',
+              animation: 'slideUpModal 0.25s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0F172A', margin: 0 }}>
+                Ganti PIN iPay
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                <CloseIcon size={20} />
+              </button>
+            </div>
+
+            {pinError && (
+              <div style={{ padding: '10px', backgroundColor: '#FEE2E2', color: '#B91C1C', borderRadius: '10px', fontSize: '12.5px', marginBottom: '14px' }}>
+                {pinError}
+              </div>
+            )}
+
+            <form onSubmit={handleSavePin}>
+              <CustomTextField
+                label="PIN Saat Ini (6 Digit)"
                 type="password"
-                inputMode="numeric"
                 maxLength={6}
-                className="form-input"
-                placeholder="••••••"
                 value={oldPin}
                 onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ''))}
                 required
               />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">PIN Baru (6 Digit)</label>
-              <input
+              <CustomTextField
+                label="PIN Baru (6 Digit)"
                 type="password"
-                inputMode="numeric"
                 maxLength={6}
-                className="form-input"
-                placeholder="••••••"
                 value={newPin}
                 onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
                 required
               />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Konfirmasi PIN Baru</label>
-              <input
+              <CustomTextField
+                label="Konfirmasi PIN Baru"
                 type="password"
-                inputMode="numeric"
                 maxLength={6}
-                className="form-input"
-                placeholder="••••••"
-                value={pinConfirmation}
-                onChange={(e) => setPinConfirmation(e.target.value.replace(/\D/g, ''))}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
                 required
               />
-            </div>
 
-            <button type="submit" className="btn-primary" disabled={loadingPin}>
-              {loadingPin ? 'Memproses...' : 'Ubah PIN Keamanan'}
-            </button>
-          </form>
-
-          {/* Logout Button */}
-          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
-            <button onClick={handleLogout} className="sidebar-btn-logout">
-              Keluar Akun iPay
-            </button>
+              <div style={{ marginTop: '20px' }}>
+                <CustomButton
+                  text="Simpan PIN Baru"
+                  type="submit"
+                  isLoading={isUpdatingPin}
+                />
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Keluar dari iPay"
+        message="Apakah Anda yakin ingin keluar dari akun ini?"
+        confirmText="Keluar"
+        isDanger
+      />
     </AppLayout>
   );
 };
 
-export default ProfilePage;
+export default Profile;

@@ -46,6 +46,7 @@ export interface PaymentRequest {
   notes: string | null;
   status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled';
   transaction_id: number | null;
+  payment_code?: string | null;
   expires_at: string | null;
   created_at: string;
   requester?: Partial<User>;

@@ -38,7 +38,7 @@ class BalanceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -85,7 +85,7 @@ class BalanceCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Row(
@@ -152,22 +152,29 @@ class BalanceCard extends StatelessWidget {
 
           // Quick Action Bar inside Card
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildActionButton(
-                icon: Icons.add_circle_outline,
-                label: 'Top Up',
-                onTap: onTopUpPressed,
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.add_circle_outline,
+                  label: 'Top Up',
+                  onTap: onTopUpPressed,
+                ),
               ),
-              _buildActionButton(
-                icon: Icons.send_outlined,
-                label: 'Transfer',
-                onTap: onTransferPressed,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.send_outlined,
+                  label: 'Transfer',
+                  onTap: onTransferPressed,
+                ),
               ),
-              _buildActionButton(
-                icon: Icons.qr_code_scanner,
-                label: 'Scan QR',
-                onTap: onScanPressed,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.qr_code_scanner,
+                  label: 'Scan QR',
+                  onTap: onScanPressed,
+                ),
               ),
             ],
           ),
@@ -185,21 +192,26 @@ class BalanceCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.18),
+          color: Colors.white.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],

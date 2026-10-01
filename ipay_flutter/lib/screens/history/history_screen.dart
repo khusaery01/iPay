@@ -14,22 +14,33 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedType = 'all';
-  String _selectedStatus = 'all';
+  final String _selectedStatus = 'all';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchHistory();
+      if (mounted) {
+        _fetchHistory(refresh: false);
+      }
     });
   }
 
-  Future<void> _fetchHistory() async {
+  Future<void> _fetchHistory({bool refresh = false}) async {
+    if (!mounted) return;
     await context.read<TransactionProvider>().fetchTransactions(
           type: _selectedType,
           status: _selectedStatus,
-          refresh: true,
+          refresh: refresh,
         );
+  }
+
+  void _onFilterChanged(String newType) {
+    if (_selectedType == newType) return;
+    setState(() {
+      _selectedType = newType;
+    });
+    _fetchHistory(refresh: true);
   }
 
   @override
@@ -53,25 +64,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   children: [
                     const Icon(Icons.filter_list, size: 20, color: AppColors.textSecondary),
                     const SizedBox(width: 8),
-                    _buildFilterChip('Semua Jenis', 'all', _selectedType, (val) {
-                      setState(() => _selectedType = val);
-                      _fetchHistory();
-                    }),
+                    _buildFilterChip('Semua Jenis', 'all', _selectedType, _onFilterChanged),
                     const SizedBox(width: 6),
-                    _buildFilterChip('Transfer', 'transfer', _selectedType, (val) {
-                      setState(() => _selectedType = val);
-                      _fetchHistory();
-                    }),
+                    _buildFilterChip('Transfer', 'transfer', _selectedType, _onFilterChanged),
                     const SizedBox(width: 6),
-                    _buildFilterChip('Top Up', 'topup', _selectedType, (val) {
-                      setState(() => _selectedType = val);
-                      _fetchHistory();
-                    }),
+                    _buildFilterChip('Top Up', 'topup', _selectedType, _onFilterChanged),
                     const SizedBox(width: 6),
-                    _buildFilterChip('Pembayaran', 'payment', _selectedType, (val) {
-                      setState(() => _selectedType = val);
-                      _fetchHistory();
-                    }),
+                    _buildFilterChip('Pembayaran', 'payment', _selectedType, _onFilterChanged),
                   ],
                 ),
               ),
@@ -81,32 +80,55 @@ class _HistoryScreenState extends State<HistoryScreen> {
             // Transactions List
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _fetchHistory,
-                child: transactionProvider.isLoading
+                onRefresh: () => _fetchHistory(refresh: true),
+                child: transactionProvider.isLoading && transactionProvider.transactions.isEmpty
                     ? const Center(child: CircularProgressIndicator())
-                    : transactionProvider.transactions.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Belum ada transaksi ditemukan.',
-                              style: TextStyle(color: AppColors.textMuted),
+                    : transactionProvider.errorMessage != null && transactionProvider.transactions.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    transactionProvider.errorMessage!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: AppColors.textSecondary),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () => _fetchHistory(refresh: true),
+                                    child: const Text('Coba Lagi'),
+                                  ),
+                                ],
+                              ),
                             ),
                           )
-                        : ListView.separated(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            itemCount: transactionProvider.transactions.length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(height: 1, indent: 64),
-                            itemBuilder: (context, index) {
-                              final txn = transactionProvider.transactions[index];
-                              return TransactionItem(
-                                transaction: txn,
-                                onTap: () => context.push(
-                                  '/history/detail',
-                                  extra: txn,
+                        : transactionProvider.transactions.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'Belum ada transaksi ditemukan.',
+                                  style: TextStyle(color: AppColors.textMuted),
                                 ),
-                              );
-                            },
-                          ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                itemCount: transactionProvider.transactions.length,
+                                separatorBuilder: (context, index) =>
+                                    const Divider(height: 1, indent: 64),
+                                itemBuilder: (context, index) {
+                                  final txn = transactionProvider.transactions[index];
+                                  return TransactionItem(
+                                    transaction: txn,
+                                    onTap: () => context.push(
+                                      '/history/detail',
+                                      extra: txn,
+                                    ),
+                                  );
+                                },
+                              ),
               ),
             ),
           ],

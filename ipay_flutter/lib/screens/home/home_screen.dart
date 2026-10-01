@@ -152,8 +152,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => context.push('/payment-request'),
                     ),
                     QuickActionItem(
-                      title: 'Bayar Direct',
-                      icon: Icons.pin_drop_outlined,
+                      title: 'Bayar Langsung',
+                      icon: Icons.bolt,
                       color: const Color(0xFFEC4899),
                       onTap: () => context.push('/pay-direct'),
                     ),

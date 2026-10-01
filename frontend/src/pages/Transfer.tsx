@@ -1,289 +1,354 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import { AppLayout } from '../layouts/AppLayout';
+import { AppBar } from '../components/AppBar';
+import { CustomButton } from '../components/CustomButton';
+import { CustomTextField } from '../components/CustomTextField';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
+import { PinInputDialog } from '../components/PinInputDialog';
+import { SuccessReceiptModal } from '../components/SuccessReceiptModal';
+import {
+  WalletIcon,
+  CheckCircleIcon,
+} from '../components/Icons';
 
-const Transfer: React.FC = () => {
-  const [toIpayId, setToIpayId] = useState('');
-  const [receiverName, setReceiverName] = useState<string | null>(null);
-  const [checkingUser, setCheckingUser] = useState(false);
-  const [amount, setAmount] = useState<number | ''>('');
+export const Transfer: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialIpayId = searchParams.get('ipay_id') || '';
+
+  const [targetIpayId, setTargetIpayId] = useState(initialIpayId);
+  const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [pin, setPin] = useState('');
-  const [step, setStep] = useState<'input' | 'confirm'>('input');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  const [recipient, setRecipient] = useState<{ name: string; ipay_id: string; email?: string } | null>(null);
+  const [isCheckingUser, setIsCheckingUser] = useState(false);
+  const [userCheckError, setUserCheckError] = useState<string | null>(null);
+
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const [successData, setSuccessData] = useState<{
-    message: string;
-    transaction_code: string;
-    to: { name: string; ipay_id: string };
+    res: any;
     amount: number;
-    new_balance: number;
+    recipientName?: string;
   } | null>(null);
 
   const navigate = useNavigate();
+  const quickAmounts = [10000, 25000, 50000, 100000, 250000, 500000];
 
-  // Validasi ID Penerima
-  const handleCheckUser = async () => {
-    if (!toIpayId) return;
-    setError('');
-    setCheckingUser(true);
-    try {
-      const res = await api.get(`/transactions/check-user/${toIpayId.toUpperCase()}`);
-      if (res.data?.data) {
-        setReceiverName(res.data.data.name);
-        setToIpayId(res.data.data.ipay_id);
-      }
-    } catch (err: any) {
-      setReceiverName(null);
-      setError(err.response?.data?.message || 'iPay ID penerima tidak ditemukan.');
-    } finally {
-      setCheckingUser(false);
-    }
-  };
-
-  const handleProceedToConfirm = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    const numericAmount = Number(amount);
-    if (!numericAmount || numericAmount < 1000) {
-      setError('Nominal transfer minimal Rp 1.000.');
-      return;
-    }
-
-    if (!toIpayId) {
-      setError('Masukkan iPay ID penerima.');
-      return;
-    }
-
-    setStep('confirm');
-  };
-
-  const handleExecuteTransfer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (pin.length !== 6 || !/^\d+$/.test(pin)) {
-      setError('PIN harus berupa 6 digit angka.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await api.post('/transactions/transfer', {
-        to_ipay_id: toIpayId,
-        amount: Number(amount),
-        description: description || undefined,
-        pin,
-      });
-
-      setSuccessData(response.data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Transfer gagal. Pastikan saldo cukup dan PIN benar.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatIDR = (val: number) => {
+  const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(val);
   };
 
-  if (successData) {
-    return (
-      <div className="app-container">
-        <div className="app-content" style={{ textAlign: 'center', paddingTop: '40px' }}>
-          <div style={{ fontSize: '3.5rem', marginBottom: '16px' }}>💸</div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px' }}>
-            Transfer Berhasil!
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
-            Dana telah terkirim ke penerima.
-          </p>
+  const handleCheckUser = async (idToCheck: string) => {
+    const cleanId = idToCheck.trim().toUpperCase();
+    if (!cleanId) return;
 
-          <div style={{ background: 'var(--bg-muted)', padding: '20px', borderRadius: 'var(--border-radius-md)', border: '1px solid var(--border-color)', marginBottom: '24px', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Kode Transaksi:</span>
-              <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{successData.transaction_code}</span>
+    setIsCheckingUser(true);
+    setUserCheckError(null);
+    setRecipient(null);
+
+    try {
+      const res = await api.get(`/users/check/${cleanId}`);
+      if (res.data && res.data.name) {
+        setRecipient({
+          name: res.data.name,
+          ipay_id: cleanId,
+          email: res.data.email,
+        });
+        setUserCheckError(null);
+      } else if (res.data?.data?.name) {
+        setRecipient({
+          name: res.data.data.name,
+          ipay_id: cleanId,
+          email: res.data.data.email,
+        });
+        setUserCheckError(null);
+      } else {
+        setUserCheckError('iPay ID penerima tidak ditemukan.');
+      }
+    } catch (err: any) {
+      setUserCheckError(err.response?.data?.message || 'iPay ID penerima tidak ditemukan.');
+    } finally {
+      setIsCheckingUser(false);
+    }
+  };
+
+  useEffect(() => {
+    if (initialIpayId) {
+      setTargetIpayId(initialIpayId.toUpperCase());
+      handleCheckUser(initialIpayId);
+    }
+  }, [initialIpayId]);
+
+  const handleStartTransfer = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    const cleanId = targetIpayId.trim();
+    if (!cleanId) {
+      setErrorMessage('iPay ID penerima wajib diisi.');
+      return;
+    }
+
+    const numAmount = parseFloat(amount.replace(/\D/g, ''));
+    if (isNaN(numAmount) || numAmount < 1000) {
+      setErrorMessage('Minimal transfer adalah Rp1.000.');
+      return;
+    }
+
+    setShowConfirmDialog(true);
+  };
+
+  const handleProceedToPin = () => {
+    setShowConfirmDialog(false);
+    setShowPinDialog(true);
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    try {
+      setIsTransferring(true);
+      setErrorMessage(null);
+
+      const numAmount = parseFloat(amount.replace(/\D/g, ''));
+      const payload = {
+        receiver_ipay_id: targetIpayId.trim().toUpperCase(),
+        amount: numAmount,
+        description: description.trim() || undefined,
+        pin,
+      };
+
+      const res = await api.post('/transfers', payload);
+      setShowPinDialog(false);
+
+      setSuccessData({
+        res: res.data,
+        amount: numAmount,
+        recipientName: recipient?.name || targetIpayId,
+      });
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.message || err.message || 'Transfer saldo gagal.');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const numAmount = parseFloat(amount.replace(/\D/g, '') || '0');
+
+  return (
+    <AppLayout activeTab="home">
+      <AppBar
+        title="Transfer Saldo"
+        showBack
+        onBack={() => navigate('/home')}
+      />
+
+      <div style={{ padding: '20px' }}>
+        {errorMessage && (
+          <div
+            style={{
+              padding: '12px',
+              backgroundColor: '#FEE2E2',
+              color: '#B91C1C',
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              marginBottom: '16px',
+            }}
+          >
+            {errorMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleStartTransfer}>
+          {/* Target iPay ID Input */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <CustomTextField
+                label="iPay ID Penerima"
+                placeholder="Contoh: IPY0000002"
+                prefixIcon={<WalletIcon size={18} />}
+                value={targetIpayId}
+                onChange={(e) => {
+                  setTargetIpayId(e.target.value);
+                  if (recipient || userCheckError) {
+                    setRecipient(null);
+                    setUserCheckError(null);
+                  }
+                }}
+                errorText={userCheckError}
+                style={{ marginBottom: 0 }}
+              />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Penerima:</span>
-              <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                {successData.to.name} ({successData.to.ipay_id})
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nominal:</span>
-              <span style={{ fontWeight: 700, color: 'var(--danger)', fontSize: '0.95rem' }}>
-                -{formatIDR(successData.amount)}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sisa Saldo:</span>
-              <span style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1.05rem' }}>
-                {formatIDR(successData.new_balance)}
-              </span>
+            <div style={{ paddingTop: '24px' }}>
+              <button
+                type="button"
+                onClick={() => handleCheckUser(targetIpayId)}
+                disabled={isCheckingUser || !targetIpayId.trim()}
+                style={{
+                  height: '48px',
+                  padding: '0 16px',
+                  backgroundColor: '#4F46E5',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '13.5px',
+                  fontWeight: 600,
+                  cursor: isCheckingUser || !targetIpayId.trim() ? 'not-allowed' : 'pointer',
+                  opacity: isCheckingUser || !targetIpayId.trim() ? 0.6 : 1,
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {isCheckingUser ? (
+                  <span className="spinner" style={{ width: '16px', height: '16px', borderTopColor: '#FFFFFF' }} />
+                ) : (
+                  'Cek ID'
+                )}
+              </button>
             </div>
           </div>
 
-          <button onClick={() => navigate('/home')} className="btn-primary">
-            Kembali ke Beranda
-          </button>
-        </div>
-      </div>
-    );
-  }
+          {/* Verified Recipient Card */}
+          {recipient && (
+            <div
+              style={{
+                marginTop: '10px',
+                marginBottom: '16px',
+                padding: '12px 14px',
+                backgroundColor: '#D1FAE5',
+                border: '1px solid #A7F3D0',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <CheckCircleIcon size={20} color="#10B981" />
+              <div>
+                <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#047857' }}>
+                  {recipient.name}
+                </div>
+                <div style={{ fontSize: '12px', color: '#065F46' }}>
+                  {recipient.ipay_id} {recipient.email ? `• ${recipient.email}` : ''}
+                </div>
+              </div>
+            </div>
+          )}
 
-  return (
-    <div className="app-container">
-      <header className="app-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => {
-              if (step === 'confirm') setStep('input');
-              else navigate('/home');
-            }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
-          >
-            ←
-          </button>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-            {step === 'input' ? 'Kirim Saldo' : 'Konfirmasi Transfer'}
-          </h2>
-        </div>
-      </header>
+          {/* Nominal Input */}
+          <div style={{ marginTop: '16px' }}>
+            <CustomTextField
+              label="Nominal Transfer (Rp)"
+              placeholder="Minimal Rp1.000"
+              prefixIcon={<span style={{ fontWeight: 'bold', fontSize: '13px' }}>Rp</span>}
+              value={amount}
+              onChange={(e) => {
+                const numeric = e.target.value.replace(/\D/g, '');
+                setAmount(numeric ? parseInt(numeric, 10).toLocaleString('id-ID') : '');
+              }}
+            />
+          </div>
 
-      <main className="app-content">
-        {error && <div className="alert-error">{error}</div>}
-
-        {step === 'input' ? (
-          <form onSubmit={handleProceedToConfirm}>
-            {/* Input iPay ID Tujuan */}
-            <div className="form-group">
-              <label className="form-label">iPay ID Penerima</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Contoh: IPY0000002"
-                  value={toIpayId}
-                  onChange={(e) => {
-                    setToIpayId(e.target.value.toUpperCase());
-                    setReceiverName(null);
-                  }}
-                  required
-                />
+          {/* Quick Amounts Grid */}
+          <div style={{ marginBottom: '18px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '8px',
+              }}
+            >
+              {quickAmounts.map((q) => (
                 <button
+                  key={q}
                   type="button"
-                  onClick={handleCheckUser}
-                  disabled={checkingUser || !toIpayId}
+                  onClick={() => setAmount(q.toLocaleString('id-ID'))}
                   style={{
-                    padding: '0 16px',
-                    background: 'var(--primary-light)',
-                    color: 'var(--primary)',
-                    border: '1px solid var(--primary)',
-                    borderRadius: 'var(--border-radius-md)',
-                    fontWeight: 700,
-                    fontSize: '0.85rem',
+                    padding: '8px 4px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#4F46E5',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  {checkingUser ? 'Cek...' : 'Cek ID'}
+                  {formatRupiah(q)}
                 </button>
-              </div>
-              {receiverName && (
-                <div style={{ marginTop: '6px', fontSize: '0.85rem', color: 'var(--secondary)', fontWeight: 600 }}>
-                  ✓ Penerima: {receiverName}
-                </div>
-              )}
+              ))}
             </div>
+          </div>
 
-            {/* Input Nominal */}
-            <div className="form-group">
-              <label className="form-label">Nominal Transfer (Rp)</label>
-              <input
-                type="number"
-                min="1000"
-                max="50000000"
-                step="1000"
-                className="form-input"
-                placeholder="Minimal Rp 1.000"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                required
-              />
-            </div>
+          {/* Catatan */}
+          <CustomTextField
+            label="Catatan / Berita Transfer (Opsional)"
+            placeholder="Contoh: Bayar makan siang"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
 
-            {/* Catatan Opsional */}
-            <div className="form-group">
-              <label className="form-label">Catatan / Keterangan (Opsional)</label>
-              <input
-                type="text"
-                maxLength={255}
-                className="form-input"
-                placeholder="Contoh: Patungan makan siang"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+          <div style={{ marginTop: '24px' }}>
+            <CustomButton
+              text="Lanjutkan Transfer"
+              type="submit"
+            />
+          </div>
+        </form>
+      </div>
 
-            <button type="submit" className="btn-primary" disabled={!toIpayId || !amount}>
-              Lanjut Konfirmasi
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleExecuteTransfer}>
-            {/* Ringkasan Konfirmasi */}
-            <div style={{ background: 'var(--bg-muted)', padding: '16px', borderRadius: 'var(--border-radius-md)', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Penerima:</span>
-                <span style={{ fontWeight: 700 }}>{receiverName || toIpayId}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>iPay ID:</span>
-                <span style={{ fontWeight: 600 }}>{toIpayId}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nominal:</span>
-                <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatIDR(Number(amount))}</span>
-              </div>
-              {description && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Catatan:</span>
-                  <span style={{ fontSize: '0.85rem' }}>{description}</span>
-                </div>
-              )}
-            </div>
+      {/* Confirmation Modal */}
+      <ConfirmationDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        onConfirm={handleProceedToPin}
+        title="Konfirmasi Transfer"
+        message={`Kirim ${formatRupiah(numAmount)} kepada ${recipient?.name || targetIpayId}?`}
+        confirmText="Lanjut ke PIN"
+      />
 
-            {/* Input PIN Otorisasi */}
-            <div className="form-group">
-              <label className="form-label">Masukkan PIN Keamanan Anda (6 Digit)</label>
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                className="form-input"
-                placeholder="••••••"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                required
-                autoFocus
-              />
-            </div>
+      {/* PIN Dialog */}
+      <PinInputDialog
+        isOpen={showPinDialog}
+        onClose={() => setShowPinDialog(false)}
+        onSuccess={handlePinSubmit}
+        isLoading={isTransferring}
+        title="Otorisasi PIN Transfer"
+        description={`Masukkan 6-digit PIN iPay untuk mentransfer ${formatRupiah(numAmount)} kepada ${recipient?.name || targetIpayId}`}
+      />
 
-            <button type="submit" className="btn-primary" disabled={loading || pin.length !== 6}>
-              {loading ? 'Mengirim Dana...' : `Kirim ${formatIDR(Number(amount))}`}
-            </button>
-          </form>
-        )}
-      </main>
-    </div>
+      {/* Success Receipt Modal */}
+      {successData && (
+        <SuccessReceiptModal
+          isOpen={Boolean(successData)}
+          onClose={() => {
+            setSuccessData(null);
+            navigate('/home');
+          }}
+          title="Transfer Berhasil!"
+          message={`Transfer kepada ${successData.recipientName} berhasil diproses.`}
+          transactionCode={successData.res?.transaction_code}
+          recipientName={successData.recipientName}
+          source="Saldo iPay"
+          amount={successData.amount}
+          newBalance={successData.res?.new_balance ? parseFloat(successData.res.new_balance) : null}
+          buttonText="Selesai"
+        />
+      )}
+    </AppLayout>
   );
 };
 

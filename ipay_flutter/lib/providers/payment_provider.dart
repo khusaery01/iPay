@@ -7,43 +7,75 @@ class PaymentProvider extends ChangeNotifier {
 
   List<PaymentRequestModel> _incomingRequests = [];
   List<PaymentRequestModel> _outgoingRequests = [];
-  bool _isLoading = false;
-  String? _errorMessage;
+  bool _isLoadingIncoming = false;
+  bool _isLoadingOutgoing = false;
+  bool _isActionLoading = false;
+  String? _incomingError;
+  String? _outgoingError;
+  String? _actionError;
 
   List<PaymentRequestModel> get incomingRequests => _incomingRequests;
   List<PaymentRequestModel> get outgoingRequests => _outgoingRequests;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
+  bool get isLoadingIncoming => _isLoadingIncoming;
+  bool get isLoadingOutgoing => _isLoadingOutgoing;
+  bool get isLoading => _isLoadingIncoming || _isLoadingOutgoing || _isActionLoading;
+  bool get isActionLoading => _isActionLoading;
+  String? get incomingError => _incomingError;
+  String? get outgoingError => _outgoingError;
+  String? get errorMessage => _actionError ?? _incomingError ?? _outgoingError;
 
   Future<void> fetchIncomingRequests({String? status}) async {
-    _isLoading = true;
-    _errorMessage = null;
+    _isLoadingIncoming = true;
+    _incomingError = null;
+    debugPrint('[PAY_BILLS] fetch start (incoming)');
     notifyListeners();
 
     try {
       _incomingRequests = await _paymentService.getIncomingRequests(status: status);
-      _isLoading = false;
-      notifyListeners();
+      _incomingError = null;
+      debugPrint('[PAY_BILLS] fetch finish (incoming count: ${_incomingRequests.length})');
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      _incomingError = e.toString();
+      debugPrint('[PAY_BILLS] fetch finish (error: $_incomingError)');
+    } finally {
+      _isLoadingIncoming = false;
       notifyListeners();
     }
   }
 
   Future<void> fetchOutgoingRequests({String? status}) async {
-    _isLoading = true;
-    _errorMessage = null;
+    _isLoadingOutgoing = true;
+    _outgoingError = null;
+    debugPrint('[PAY_BILLS] fetch start (outgoing)');
     notifyListeners();
 
     try {
       _outgoingRequests = await _paymentService.getOutgoingRequests(status: status);
-      _isLoading = false;
-      notifyListeners();
+      _outgoingError = null;
+      debugPrint('[PAY_BILLS] fetch finish (outgoing count: ${_outgoingRequests.length})');
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      _outgoingError = e.toString();
+      debugPrint('[PAY_BILLS] fetch finish (outgoing error: $_outgoingError)');
+    } finally {
+      _isLoadingOutgoing = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> loadAllRequests() async {
+    await Future.wait([
+      fetchIncomingRequests(),
+      fetchOutgoingRequests(),
+    ]);
+  }
+
+  Future<PaymentRequestModel?> getPaymentRequest(int id) async {
+    try {
+      return await _paymentService.getPaymentRequest(id);
+    } catch (e) {
+      _actionError = e.toString();
+      notifyListeners();
+      return null;
     }
   }
 
@@ -54,8 +86,8 @@ class PaymentProvider extends ChangeNotifier {
     String? notes,
     int expiresIn = 24,
   }) async {
-    _isLoading = true;
-    _errorMessage = null;
+    _isActionLoading = true;
+    _actionError = null;
     notifyListeners();
 
     try {
@@ -66,12 +98,12 @@ class PaymentProvider extends ChangeNotifier {
         notes: notes,
         expiresIn: expiresIn,
       );
-      _isLoading = false;
+      _isActionLoading = false;
       notifyListeners();
       return res;
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      _actionError = e.toString();
+      _isActionLoading = false;
       notifyListeners();
       return null;
     }
@@ -83,8 +115,8 @@ class PaymentProvider extends ChangeNotifier {
     required String source,
     String simulatedStatus = 'success',
   }) async {
-    _isLoading = true;
-    _errorMessage = null;
+    _isActionLoading = true;
+    _actionError = null;
     notifyListeners();
 
     try {
@@ -94,42 +126,46 @@ class PaymentProvider extends ChangeNotifier {
         source: source,
         simulatedStatus: simulatedStatus,
       );
-      _isLoading = false;
+      _isActionLoading = false;
       notifyListeners();
       return res;
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      _actionError = e.toString();
+      _isActionLoading = false;
       notifyListeners();
       return null;
     }
   }
 
   Future<Map<String, dynamic>?> payDirect({
-    required String paymentCode,
     required String payerIpayId,
+    double? amount,
+    String? description,
+    String? paymentCode,
     required String pin,
     required String source,
     String simulatedStatus = 'success',
   }) async {
-    _isLoading = true;
-    _errorMessage = null;
+    _isActionLoading = true;
+    _actionError = null;
     notifyListeners();
 
     try {
       final res = await _paymentService.payDirect(
-        paymentCode: paymentCode,
         payerIpayId: payerIpayId,
+        amount: amount,
+        description: description,
+        paymentCode: paymentCode,
         pin: pin,
         source: source,
         simulatedStatus: simulatedStatus,
       );
-      _isLoading = false;
+      _isActionLoading = false;
       notifyListeners();
       return res;
     } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
+      _actionError = e.toString();
+      _isActionLoading = false;
       notifyListeners();
       return null;
     }
@@ -141,7 +177,7 @@ class PaymentProvider extends ChangeNotifier {
       await fetchIncomingRequests();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _actionError = e.toString();
       notifyListeners();
       return false;
     }
@@ -153,7 +189,7 @@ class PaymentProvider extends ChangeNotifier {
       await fetchOutgoingRequests();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _actionError = e.toString();
       notifyListeners();
       return false;
     }

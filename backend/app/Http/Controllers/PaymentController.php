@@ -161,46 +161,100 @@ class PaymentController extends Controller
     public function payDirect(Request $request)
     {
         $validated = $request->validate([
-            'payment_code'     => 'required|string',
+            'payment_code'     => 'nullable|string',
+            'amount'           => 'nullable|numeric|min:1000|max:50000000',
             'payer_ipay_id'    => 'required|string',
             'pin'              => 'required|string',
             'source'           => 'required|in:ipay,dana,gopay,bca',
             'simulated_status' => 'nullable|in:success,failed',
+            'description'      => 'nullable|string|max:255',
         ]);
 
-        // 1. Cari transaksi pending berdasarkan payment_code (otp_code)
-        $transaction = Transaction::where('otp_code', $validated['payment_code'])
-            ->where('status', 'pending')
-            ->first();
+        $requester = $request->user();
 
-        if (!$transaction) {
-            return response()->json(['message' => 'Kode pembayaran tidak valid, kedaluwarsa, atau transaksi sudah selesai.'], 404);
-        }
-
-        // Cek kedaluwarsa waktu
-        if ($transaction->isExpired()) {
-            DB::beginTransaction();
-            $transaction->update(['status' => 'expired']);
-            $paymentRequest = PaymentRequest::where('transaction_id', $transaction->id)->first();
-            if ($paymentRequest) {
-                $paymentRequest->update(['status' => 'expired']);
-            }
-            DB::commit();
-            return response()->json(['message' => 'Kode pembayaran sudah kedaluwarsa.'], 422);
-        }
-
-        // 2. Cari Payer berdasarkan ipay_id
-        $payer = User::where('ipay_id', $validated['payer_ipay_id'])
+        // 1. Cari Payer berdasarkan ipay_id
+        $payer = User::where('ipay_id', strtoupper($validated['payer_ipay_id']))
             ->where('is_active', true)
             ->first();
 
-        if (!$payer || $transaction->sender_id !== $payer->id) {
-            return response()->json(['message' => 'iPay ID pembeli tidak cocok dengan tagihan ini.'], 422);
+        if (!$payer) {
+            return response()->json(['message' => 'iPay ID pembeli tidak ditemukan atau tidak aktif.'], 404);
+        }
+
+        if ($payer->id === $requester->id) {
+            return response()->json(['message' => 'Tidak bisa melakukan transaksi Pay Direct ke diri sendiri.'], 422);
+        }
+
+        // 2. Jika diberikan payment_code -> ambil transaksi yang ada
+        if (!empty($validated['payment_code'])) {
+            $transaction = Transaction::where('otp_code', $validated['payment_code'])
+                ->where('status', 'pending')
+                ->first();
+
+            if (!$transaction) {
+                return response()->json(['message' => 'Kode pembayaran tidak valid, kedaluwarsa, atau transaksi sudah selesai.'], 404);
+            }
+
+            if ($transaction->isExpired()) {
+                DB::beginTransaction();
+                $transaction->update(['status' => 'expired']);
+                $paymentRequest = PaymentRequest::where('transaction_id', $transaction->id)->first();
+                if ($paymentRequest) {
+                    $paymentRequest->update(['status' => 'expired']);
+                }
+                DB::commit();
+                return response()->json(['message' => 'Kode pembayaran sudah kedaluwarsa.'], 422);
+            }
+
+            if ($transaction->sender_id !== $payer->id) {
+                return response()->json(['message' => 'iPay ID pembeli tidak cocok dengan tagihan ini.'], 422);
+            }
+
+            $paymentRequest = PaymentRequest::where('transaction_id', $transaction->id)->firstOrFail();
+        } else {
+            // Mode Instant Pay Direct: tanpa kode tagihan, cukup masukkan nominal langsung
+            if (empty($validated['amount']) || $validated['amount'] < 1000) {
+                return response()->json(['message' => 'Nominal pembayaran minimal Rp 1.000 atau masukkan kode pembayaran.'], 422);
+            }
+
+            DB::beginTransaction();
+            try {
+                $txnCode = Transaction::generateCode();
+                $paymentCode = Transaction::generatePaymentCode();
+                $expiresAt = now()->addHours(24);
+
+                $transaction = Transaction::create([
+                    'transaction_code' => $txnCode,
+                    'type'             => 'payment',
+                    'sender_id'        => $payer->id,
+                    'receiver_id'      => $requester->id,
+                    'amount'           => $validated['amount'],
+                    'description'      => $validated['description'] ?? 'Pay Direct di Toko/Penjual',
+                    'status'           => 'pending',
+                    'otp_code'         => $paymentCode,
+                    'expires_at'       => $expiresAt,
+                ]);
+
+                $paymentRequest = PaymentRequest::create([
+                    'requester_id'   => $requester->id,
+                    'payer_id'       => $payer->id,
+                    'amount'         => $validated['amount'],
+                    'description'    => $validated['description'] ?? 'Pay Direct di Toko/Penjual',
+                    'notes'          => 'Transaksi langsung di perangkat penjual',
+                    'status'         => 'pending',
+                    'transaction_id' => $transaction->id,
+                    'expires_at'     => $expiresAt,
+                ]);
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json(['message' => 'Gagal menginisialisasi transaksi: ' . $e->getMessage()], 500);
+            }
         }
 
         // 3. Verifikasi PIN Pembeli
         if (!$payer->verifyPin($validated['pin'])) {
-            // Catat attempt gagal untuk transaksi ini
             PaymentAttempt::create([
                 'transaction_id'       => $transaction->id,
                 'payment_source_label' => $validated['source'],
@@ -210,10 +264,7 @@ class PaymentController extends Controller
             return response()->json(['message' => 'PIN pembeli salah.'], 422);
         }
 
-        // 4. Ambil model PaymentRequest terkait
-        $paymentRequest = PaymentRequest::where('transaction_id', $transaction->id)->firstOrFail();
-
-        // 5. Proses pembayaran
+        // 4. Proses pembayaran
         return $this->processPayment(
             $paymentRequest,
             $payer,
